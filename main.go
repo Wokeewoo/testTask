@@ -1,12 +1,28 @@
 package main
 
 import (
-	"github.com/jackc/pgx"
+	"github.com/gorilla/mux"
+	"log"
+	"net/http"
+	"os"
+	"testTask/db"
 )
 
-var configs = pgx.ConnConfig{Host: "localhost", Port: 5432, Database: "postgres", User: "aba", Password: "123321"}
+func init() {
+	log.Println("Starting server...")
+	db.Connect()
+	log.Println("Database connected")
+}
 
 func main() {
-	SetCacheFromDB()
-	GetChanMsgs()
+	router := mux.NewRouter()
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "8080"
+	}
+
+	err := http.ListenAndServe(":"+port, router)
+	if err != nil {
+		log.Fatal(err)
+	}
 }
