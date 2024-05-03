@@ -33,8 +33,9 @@ func dbConnect() {
 	if err != nil {
 		log.Fatal("Error pinging database")
 	}
-	defer connection.Close()
+
 	db = connection
+	err = goose.SetDialect("postgres")
 	log.Println("migrations started")
 	err = goose.Up(db, "migrations")
 	if err != nil {

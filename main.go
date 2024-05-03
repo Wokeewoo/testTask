@@ -1,42 +1,31 @@
 package main
 
 import (
-	"github.com/gorilla/mux"
 	"log"
 	"net/http"
 	"os"
 	"testTask/controllers"
 	"testTask/db"
-	"time"
 )
 
-func init() {
+func main() {
 	log.Println("Starting server...")
 	db.Connect()
 	log.Println("Database connected")
-}
-
-func main() {
-	router := mux.NewRouter()
+	mux := http.NewServeMux()
 	port := os.Getenv("PORT")
 	if port == "" {
 		port = "8000"
 	}
-	srv := &http.Server{
-		Handler: router,
-		Addr:    "127.0.0.1:8000",
-		// Good practice: enforce timeouts for servers you create!
-		WriteTimeout: 15 * time.Second,
-		ReadTimeout:  15 * time.Second,
-	}
 
-	router.HandleFunc("api/cars/{id}", controllers.GetCar).Methods("GET")
-	router.HandleFunc("api/cars/", controllers.GetCars).Methods("Get")
-	router.HandleFunc("api/cars/", controllers.CreateCar).Methods("POST")
-	http.Handle("/", router)
-	err := srv.ListenAndServe()
+	host := os.Getenv("HOST")
+
+	mux.HandleFunc("GET /api/cars/{id}", controllers.GetCar)
+	mux.HandleFunc("GET /api/cars/", controllers.GetCars)
+	mux.HandleFunc("POST /api/cars/", controllers.CreateCar)
+	err := http.ListenAndServe(host+":"+port, mux)
 	if err != nil {
 		log.Fatal(err)
 	}
-
+	defer db.GetDB().Close()
 }
