@@ -35,13 +35,13 @@ func dbConnect() {
 	}
 	defer connection.Close()
 	db = connection
-	goose.SetBaseFS(sqlMigrations)
-	goose.SetDialect("postgres")
-	log.Println("Database connected")
-	dir := "migrations"
-	err = goose.Up(db, dir)
-	log.Println(err)
-	log.Println("Migrations executed")
+	log.Println("migrations started")
+	err = goose.Up(db, "migrations")
+	if err != nil {
+		log.Println("Error executing migrations")
+		log.Println(err)
+	}
+	log.Println("migrations finished")
 }
 
 func Connect() {
