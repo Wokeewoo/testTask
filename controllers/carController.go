@@ -11,6 +11,19 @@ import (
 	"testTask/models"
 )
 
+// GetCar godoc
+//
+//	@Summary		Get a car
+//	@Description	get a car by ID
+//	@Tags			cars
+//	@Accept			json
+//	@Produce		json
+//	@Param			id	path		int	true	"Car ID"
+//	@Success		200	{object}	models.Car
+//	@Failure		400	{object}	string
+//	@Failure		404	{object}	string
+//	@Failure		500	{object}	string
+//	@Router			/cars/{id} [get]
 func GetCar(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	id, err := strconv.Atoi(r.PathValue("id"))
@@ -26,6 +39,19 @@ func GetCar(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(car)
 }
 
+// CreateCar godoc
+//
+//	@Summary		Create cars
+//	@Description	create new cars by list of regNums
+//	@Tags			cars
+//	@Accept			json
+//	@Produce		json
+//	@Param			regNums		body		models.CreateCarRequest	true	"List of regNums"
+//	@Success		200	{object}	models.CreateCarResponse
+//	@Failure		400	{object}	string
+//	@Failure		404	{object}	string
+//	@Failure		500	{object}	string
+//	@Router			/cars [post]
 func CreateCar(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	var response models.CreateCarResponse
@@ -75,6 +101,27 @@ func CreateCar(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(response)
 }
 
+// GetCars godoc
+//
+//	@Summary		get list of cars
+//	@Description	get list of cars with optional filters and pagination
+//	@Tags			cars
+//	@Accept			json
+//	@Produce		json
+//	@Param			limit 	query		int	false	"Limit"
+//	@Param			page 	query		int	false	"Page"
+//	@Param			regNum 	query		string	false	"RegNum"
+//	@Param			mark 	query		string	false	"Mark"
+//	@Param			model 	query		string	false	"Model"
+//	@Param			year 	query		int	false	"Year"
+//	@Param			owner_name 	query		string	false	"OwnerName"
+//	@Param			owner_surname 	query		string	false	"OwnerSurname"
+//	@Param			owner_patronymic 	query		string	false	"OwnerPatronymic"
+//	@Success		200	{object}	models.Cars
+//	@Failure		400	{object}	string
+//	@Failure		404	{object}	string
+//	@Failure		500	{object}	string
+//	@Router			/cars [get]
 func GetCars(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	values := r.URL.Query()
@@ -101,6 +148,18 @@ func GetCars(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(response)
 }
 
+// DeleteCar godoc
+// @Summary		delete car
+// @Description	delete car by id
+// @Tags			cars
+// @Accept			json
+// @Produce		json
+// @Param			id	path		int	true	"Car ID"
+// @Success		200	{string}	string	"deleted"
+// @Failure		400	{object}	string
+// @Failure		404	{object}	string
+// @Failure		500	{object}	string
+// @Router			/cars/{id} [delete]
 func DeleteCar(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	id, err := strconv.Atoi(r.PathValue("id"))
@@ -118,6 +177,19 @@ func DeleteCar(w http.ResponseWriter, r *http.Request) {
 
 }
 
+// UpdateCar godoc
+// @Summary		update car
+// @Description	update car by id
+// @Tags			cars
+// @Accept			json
+// @Produce		json
+// @Param			id	path		int	true	"Car ID"
+// @Param			car	body		models.UpdateCarRequest	true	"Car"
+// @Success		200	{string}	string	"updated"
+// @Failure		400	{object}	string
+// @Failure		404	{object}	string
+// @Failure		500	{object}	string
+// @Router			/cars/{id} [patch]
 func UpdateCar(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	id, err := strconv.Atoi(r.PathValue("id"))

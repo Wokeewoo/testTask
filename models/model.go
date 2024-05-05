@@ -9,12 +9,16 @@ import (
 	"time"
 )
 
+// People entity for db
+// Account example
 type People struct {
 	Name       string `db:"owner_name" json:"name"`
 	Surname    string `db:"owner_surname" json:"surname"`
 	Patronymic string `db:"owner_patronymic,omitempty" json:"patronymic,omitempty"`
 }
 
+// CarFilter entity for db
+// CarFilter example
 type CarFilter struct {
 	RegNum          string `json:"regNum,omitempty"`
 	Mark            string `json:"mark,omitempty"`
@@ -27,9 +31,12 @@ type CarFilter struct {
 	Page            int    `json:"page,omitempty"`
 }
 
+// Cars example
 type Cars struct {
 	Cars []Car
 }
+
+// Car example
 type Car struct {
 	Id     int    `db:"id" json:"id"`
 	RegNum string `db:"regNum" json:"regNum"`
@@ -39,15 +46,18 @@ type Car struct {
 	Owner  People `db:"owner" json:"owner"`
 }
 
+// CreateCarRequest example
 type CreateCarRequest struct {
 	RegNums []string `json:"regNums"`
 }
 
+// CreateCarResponse example
 type CreateCarResponse struct {
 	Cars   []Car    `json:"cars"`
 	Errors []string `json:"errors"`
 }
 
+// UpdateCarRequest example
 type UpdateCarRequest struct {
 	RegNum string `json:"regNum,omitempty"`
 	Mark   string `json:"mark,omitempty"`
@@ -60,6 +70,7 @@ type UpdateCarRequest struct {
 	} `json:"owner,omitempty"`
 }
 
+// ValidateCar example
 func (c *Car) ValidateCar() error {
 	if c.RegNum == "" {
 		return fmt.Errorf("regNum is empty")
@@ -83,6 +94,7 @@ func (c *Car) ValidateCar() error {
 	return nil
 }
 
+// GetCar example
 func GetCar(id int) (Car, error) {
 	car := Car{}
 	var updatedDate pgtype.Timestamp
@@ -91,6 +103,7 @@ func GetCar(id int) (Car, error) {
 	return car, err
 }
 
+// CreateCar example
 func CreateCar(car *Car) error {
 	row := db.GetDB().QueryRow("SELECT * FROM Cars WHERE regNum = $1", car.RegNum)
 	var updatedDate pgtype.Timestamp
@@ -116,6 +129,7 @@ func CreateCar(car *Car) error {
 	return nil
 }
 
+// GetCars example
 func GetCars(filter *CarFilter) ([]Car, error) {
 	var cars []Car
 	query := "SELECT * FROM Cars"
@@ -170,11 +184,13 @@ func GetCars(filter *CarFilter) ([]Car, error) {
 	return cars, nil
 }
 
+// DeleteCar example
 func DeleteCar(id int) error {
 	_, err := db.GetDB().Exec("DELETE FROM Cars WHERE id = $1", id)
 	return err
 }
 
+// UpdateCar example
 func UpdateCar(id int, car *UpdateCarRequest) error {
 	if car.RegNum == "" && car.Mark == "" && car.Model == "" && car.Year == 0 && car.Owner.Name == "" && car.Owner.Surname == "" && car.Owner.Patronymic == "" {
 		return errors.New("no data to update")
