@@ -8,8 +8,11 @@ import (
 	"net/http"
 	"os"
 	"strconv"
+	logg "testTask/logger"
 	"testTask/models"
 )
+
+var logger = logg.GetLogger()
 
 // GetCar godoc
 //
@@ -25,18 +28,23 @@ import (
 //	@Failure		500	{object}	string
 //	@Router			/cars/{id} [get]
 func GetCar(w http.ResponseWriter, r *http.Request) {
+	logger.Infoln("get request on /cars/{id}")
 	w.Header().Set("Content-Type", "application/json")
+	logger.Debugln("Set Content-Type to application/json")
 	id, err := strconv.Atoi(r.PathValue("id"))
+	logger.WithField("id", id).Debugln("getting id")
 	if err != nil {
-		log.Println("id is not a number")
+		logger.WithError(err).Errorln("Did not get id")
 		return
 	}
+	logger.Debugln("go to models.GetCar")
 	car, err := models.GetCar(id)
 	if err != nil {
 		json.NewEncoder(w).Encode(err)
 		return
 	}
 	json.NewEncoder(w).Encode(car)
+	logger.Debugln("put result in json")
 }
 
 // CreateCar godoc
@@ -53,22 +61,27 @@ func GetCar(w http.ResponseWriter, r *http.Request) {
 //	@Failure		500	{object}	string
 //	@Router			/cars [post]
 func CreateCar(w http.ResponseWriter, r *http.Request) {
+	logger.Infoln("get request on /cars")
 	w.Header().Set("Content-Type", "application/json")
+	logger.Debugln("Set Content-Type to application/json")
 	var response models.CreateCarResponse
 	response.Cars = make([]models.Car, 0)
 	response.Errors = make([]string, 0)
 	var req models.CreateCarRequest
 	err := json.NewDecoder(r.Body).Decode(&req)
+	logger.Debugln("decode request")
 	if err != nil {
 		json.NewEncoder(w).Encode(err)
 		return
 	}
 	url := os.Getenv("car_info_api_url")
+	logger.Debugln("get url from env")
 	car := models.Car{}
 
 	extReq, err := http.NewRequest("GET", url, nil)
 	if err != nil {
-		log.Fatal(err)
+		logger.WithError(err).Errorln("Did not get url")
+		return
 	}
 	rq := extReq.URL.Query()
 
@@ -77,28 +90,40 @@ func CreateCar(w http.ResponseWriter, r *http.Request) {
 		rq.Set("regNum", regNum)
 		extReq.URL.RawQuery = rq.Encode()
 		resp, err := http.DefaultClient.Do(extReq)
+		logger.Debugln("Do request in external api")
+		defer resp.Body.Close()
+
+		if err != nil {
+			response.Errors = append(response.Errors, fmt.Sprintf("Error getting car info for regNum: %s \n error: %s", regNum, err.Error()))
+			continue
+		}
 
 		if resp.StatusCode != http.StatusOK {
 			log.Printf("Error getting car info.\n status code: %d \n status message: %s", resp.StatusCode, resp.Status)
 			response.Errors = append(response.Errors, fmt.Sprintf("Error getting car info for regNum: %s \n status code: %d \n status message: %s", regNum, resp.StatusCode, resp.Status))
 			continue
 		}
+
 		data, err := io.ReadAll(resp.Body)
 		err = json.Unmarshal(data, &car)
 		err = car.ValidateCar()
 		if err != nil {
 			response.Errors = append(response.Errors, fmt.Sprintf("Error getting car info for regNum: %s \n error: %s", regNum, err.Error()))
+			logger.Errorln(fmt.Sprintf("Error getting car info for regNum: %s \n error: %s", regNum, err.Error()))
 			continue
 		}
 		err = models.CreateCar(&car)
 		if err != nil {
 			response.Errors = append(response.Errors, fmt.Sprintf("Error when creating car for regNum: %s \n error: %s", regNum, err.Error()))
+			logger.Errorln(fmt.Sprintf("Error when creating car for regNum: %s \n error: %s", regNum, err.Error()))
 			continue
 		}
 		response.Cars = append(response.Cars, car)
+		logger.Debugln("car for regNum: %s is created", regNum)
 	}
 
 	json.NewEncoder(w).Encode(response)
+	logger.Debugln("put result in json")
 }
 
 // GetCars godoc
@@ -124,6 +149,7 @@ func CreateCar(w http.ResponseWriter, r *http.Request) {
 //	@Router			/cars [get]
 func GetCars(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
+	logger.Debugln("Set Content-Type to application/json")
 	values := r.URL.Query()
 	year, _ := strconv.Atoi(values.Get("year"))
 	page, _ := strconv.Atoi(values.Get("page"))
@@ -139,13 +165,17 @@ func GetCars(w http.ResponseWriter, r *http.Request) {
 		Limit:           limit,
 		Page:            page,
 	}
+
+	logger.Debugln("Get filter and pagination parameters")
 	carsList, err := models.GetCars(&filter)
+	logger.Debugln("Get list of cars")
 	if err != nil {
 		json.NewEncoder(w).Encode(err)
 		return
 	}
 	response := models.Cars{Cars: carsList}
 	json.NewEncoder(w).Encode(response)
+	logger.Debugln("put result in json")
 }
 
 // DeleteCar godoc
@@ -161,19 +191,24 @@ func GetCars(w http.ResponseWriter, r *http.Request) {
 // @Failure		500	{object}	string
 // @Router			/cars/{id} [delete]
 func DeleteCar(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Content-Type", "text/plain")
+	logger.Debugln("Set Content-Type to text/plain")
 	id, err := strconv.Atoi(r.PathValue("id"))
 	if err != nil {
-		log.Println("id is not a number")
+		logger.Errorln("id is not a number")
 		return
 	}
+	logger.Debugln("Get car id")
 
 	err = models.DeleteCar(id)
+	logger.Debugln("Delete car")
 	if err != nil {
 		json.NewEncoder(w).Encode(err)
+		logger.Errorln(err.Error())
 		return
 	}
-	json.NewEncoder(w).Encode("deleted")
+	w.Write([]byte("deleted"))
+	logger.Debugln("put result in response")
 
 }
 
@@ -191,22 +226,29 @@ func DeleteCar(w http.ResponseWriter, r *http.Request) {
 // @Failure		500	{object}	string
 // @Router			/cars/{id} [patch]
 func UpdateCar(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Content-Type", "text/plain")
+	logger.Debugln("Set Content-Type to text/plain")
 	id, err := strconv.Atoi(r.PathValue("id"))
 	if err != nil {
-		log.Println("id is not a number")
+		logger.Errorln("id is not a number")
 		return
 	}
+	logger.Debugln("Get car id")
 	var req models.UpdateCarRequest
 	err = json.NewDecoder(r.Body).Decode(&req)
+	logger.Debugln("Decode request")
 	if err != nil {
 		json.NewEncoder(w).Encode(err)
+		logger.Errorln(err.Error())
 		return
 	}
 	err = models.UpdateCar(id, &req)
+	logger.Debugln("Update car")
 	if err != nil {
 		json.NewEncoder(w).Encode(err)
+		logger.Errorln(err.Error())
 		return
 	}
-	json.NewEncoder(w).Encode("updated")
+	w.Write([]byte("updated"))
+	logger.Debugln("put result in response")
 }
