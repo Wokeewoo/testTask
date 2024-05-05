@@ -14,6 +14,24 @@ import (
 
 var logger = logg.GetLogger()
 
+type createCarRequest struct {
+	RegNums []string `json:"regNums"`
+}
+
+type updateCarRequest struct {
+	Id  int                     `json:"id"`
+	Car models.UpdateCarRequest `json:"car"`
+}
+
+func ValidateRequestBody(r *http.Request, req interface{}) error {
+
+	decoder := json.NewDecoder(r.Body)
+	if err := decoder.Decode(&req); err != nil {
+		return err
+	}
+	return nil
+}
+
 // GetCar godoc
 //
 //	@Summary		Get a car
@@ -28,19 +46,22 @@ var logger = logg.GetLogger()
 //	@Failure		500	{object}	string
 //	@Router			/cars/{id} [get]
 func GetCar(w http.ResponseWriter, r *http.Request) {
-	logger.Infoln("get request on /cars/{id}")
-	w.Header().Set("Content-Type", "application/json")
-	logger.Debugln("Set Content-Type to application/json")
+	logger.Infoln("get request on get /cars/{id}")
 	id, err := strconv.Atoi(r.PathValue("id"))
 	logger.WithField("id", id).Debugln("getting id")
 	if err != nil {
-		logger.WithError(err).Errorln("Did not get id")
+		logger.WithError(err).Errorln("Did not get id, bad request")
+		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
+	w.Header().Set("Content-Type", "application/json")
+	logger.Debugln("Set Content-Type to application/json")
+
 	logger.Debugln("go to models.GetCar")
 	car, err := models.GetCar(id)
 	if err != nil {
-		json.NewEncoder(w).Encode(err)
+		logger.WithError(err).Errorln("Error getting car")
+		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 	json.NewEncoder(w).Encode(car)
@@ -61,7 +82,14 @@ func GetCar(w http.ResponseWriter, r *http.Request) {
 //	@Failure		500	{object}	string
 //	@Router			/cars [post]
 func CreateCar(w http.ResponseWriter, r *http.Request) {
-	logger.Infoln("get request on /cars")
+	err := ValidateRequest(r, &createCarRequest{})
+	if err != nil {
+		logger.WithError(err).Errorln("Bad request")
+		w.WriteHeader(http.StatusBadRequest)
+		w.Write([]byte("400 - Bad request"))
+		return
+	}
+	logger.Infoln("get request on post /cars")
 	w.Header().Set("Content-Type", "application/json")
 	logger.Debugln("Set Content-Type to application/json")
 	var response models.CreateCarResponse
@@ -71,7 +99,8 @@ func CreateCar(w http.ResponseWriter, r *http.Request) {
 	err := json.NewDecoder(r.Body).Decode(&req)
 	logger.Debugln("decode request")
 	if err != nil {
-		json.NewEncoder(w).Encode(err)
+		logger.WithError(err).Errorln("Error decoding request")
+		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
 	url := os.Getenv("car_info_api_url")
@@ -80,7 +109,8 @@ func CreateCar(w http.ResponseWriter, r *http.Request) {
 
 	extReq, err := http.NewRequest("GET", url, nil)
 	if err != nil {
-		logger.WithError(err).Errorln("Did not get url")
+		logger.WithError(err).Errorln("Did not get car info")
+		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 	rq := extReq.URL.Query()
@@ -148,8 +178,8 @@ func CreateCar(w http.ResponseWriter, r *http.Request) {
 //	@Failure		500	{object}	string
 //	@Router			/cars [get]
 func GetCars(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-	logger.Debugln("Set Content-Type to application/json")
+
+	logger.Infoln("get request on get /cars")
 	values := r.URL.Query()
 	year, _ := strconv.Atoi(values.Get("year"))
 	page, _ := strconv.Atoi(values.Get("page"))
@@ -165,12 +195,14 @@ func GetCars(w http.ResponseWriter, r *http.Request) {
 		Limit:           limit,
 		Page:            page,
 	}
-
 	logger.Debugln("Get filter and pagination parameters")
+	w.Header().Set("Content-Type", "application/json")
+	logger.Debugln("Set Content-Type to application/json")
 	carsList, err := models.GetCars(&filter)
 	logger.Debugln("Get list of cars")
 	if err != nil {
-		json.NewEncoder(w).Encode(err)
+		logger.WithError(err).Errorln("Error getting cars list")
+		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 	response := models.Cars{Cars: carsList}
@@ -191,11 +223,13 @@ func GetCars(w http.ResponseWriter, r *http.Request) {
 // @Failure		500	{object}	string
 // @Router			/cars/{id} [delete]
 func DeleteCar(w http.ResponseWriter, r *http.Request) {
+	logger.WithField("id", r.PathValue("id")).Infoln("get request on delete /cars/{id}")
 	w.Header().Set("Content-Type", "text/plain")
 	logger.Debugln("Set Content-Type to text/plain")
 	id, err := strconv.Atoi(r.PathValue("id"))
 	if err != nil {
 		logger.Errorln("id is not a number")
+		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
 	logger.Debugln("Get car id")
@@ -203,8 +237,8 @@ func DeleteCar(w http.ResponseWriter, r *http.Request) {
 	err = models.DeleteCar(id)
 	logger.Debugln("Delete car")
 	if err != nil {
-		json.NewEncoder(w).Encode(err)
-		logger.Errorln(err.Error())
+		logger.WithError(err).Errorln("Error deleting car")
+		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 	w.Write([]byte("deleted"))
@@ -226,11 +260,20 @@ func DeleteCar(w http.ResponseWriter, r *http.Request) {
 // @Failure		500	{object}	string
 // @Router			/cars/{id} [patch]
 func UpdateCar(w http.ResponseWriter, r *http.Request) {
+	err := ValidateRequest(r, &updateCarRequest{})
+	if err != nil {
+		logger.WithError(err).Errorln("Bad request")
+		w.WriteHeader(http.StatusBadRequest)
+		w.Write([]byte("400 - Bad request"))
+		return
+	}
+	logger.WithField("id", r.PathValue("id")).Infoln("get request on patch /cars/{id}")
 	w.Header().Set("Content-Type", "text/plain")
 	logger.Debugln("Set Content-Type to text/plain")
 	id, err := strconv.Atoi(r.PathValue("id"))
 	if err != nil {
-		logger.Errorln("id is not a number")
+		logger.Errorln("id is not a number, bad request")
+		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
 	logger.Debugln("Get car id")
@@ -238,15 +281,15 @@ func UpdateCar(w http.ResponseWriter, r *http.Request) {
 	err = json.NewDecoder(r.Body).Decode(&req)
 	logger.Debugln("Decode request")
 	if err != nil {
-		json.NewEncoder(w).Encode(err)
-		logger.Errorln(err.Error())
+		logger.WithError(err).Errorln("Error decoding request")
+		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
 	err = models.UpdateCar(id, &req)
 	logger.Debugln("Update car")
 	if err != nil {
-		json.NewEncoder(w).Encode(err)
-		logger.Errorln(err.Error())
+		logger.WithError(err).Errorln("Error updating car")
+		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 	w.Write([]byte("updated"))

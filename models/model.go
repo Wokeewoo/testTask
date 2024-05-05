@@ -200,7 +200,7 @@ func GetCars(filter *CarFilter) ([]Car, error) {
 		cars = append(cars, car)
 	}
 	logger.Debugln("returning cars list")
-	return cars, nil
+	return cars, err
 }
 
 // DeleteCar example
